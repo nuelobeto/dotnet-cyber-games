@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CyberGames")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+34836f6d89bb13bafc34b4f020e6aa0fec96a9fa")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0ac4e5573374d86e1aa2d5b190c94eeb45a26dcf")]
 [assembly: System.Reflection.AssemblyProductAttribute("CyberGames")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CyberGames")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
