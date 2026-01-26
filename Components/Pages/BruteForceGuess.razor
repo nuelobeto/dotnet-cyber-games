@@ -1,0 +1,248 @@
+@page "/brute-force-guess"
+@rendermode InteractiveServer
+
+<PageTitle>Brute Force Guess</PageTitle>
+
+<div class="cyber-container">
+  @if (isLockedOut) 
+  {
+    <div class="shake">
+      <div class="alert-icon">⚠️</div>
+      <h2 class="alert-title">SECURITY LOCKOUT</h2>
+      <p class="alert-msg">TOO MANY FAILED ATTEMPTS. <br /> IP LOGGED. AUTHORITIES NOTIFIED.</p>
+            
+      <div class="lockout-timer">
+        RE-INITIALIZATION REQUIRED
+      </div>
+      <button class="retry-btn" @onclick="ResetGame">INITIALIZE NEW BREACH</button>
+    </div>
+  }
+  else
+  {
+    <div class="header-section">
+      <h1 class="glitch-text">DAY 01: BRUTE-FORCE</h1>
+      <div class="status-bar">
+        <span>SYSTEM STATUS: @(isCracked ? "COMPROMISED" : "ENCRYPTED")</span>
+        <span class="entropy-badge">ENTROPY: @CalculateEntropy() bits</span>
+      </div>
+    </div>
+
+    <div class="game-board">
+      <div class="password-display">
+        @if (isCracked)
+        {
+          <div class="access-granted">
+            <span class="lock-icon">🔓</span>
+            <h2 class="cracked-pass">@targetPassword</h2>
+            <p>ACCESS GRANTED</p>
+          </div>
+        }
+        else
+        {
+          <div class="access-denied">
+            <span class="lock-icon">🔒</span>
+            <h2 class="masked-pass">@maskedPassword</h2>
+            <p>MANUAL BYPASS REQUIRED</p>
+          </div>
+        }
+      </div>
+
+      <div class="input-area">
+        <label for="guess">ENTER SEQUENCE:</label>
+        <input type="text" id="guess"
+          @bind="UserInput" 
+          @bind:event="oninput" 
+          class="cyber-input" 
+          placeholder="Type to crack..." 
+          disabled="@isCracked"
+          maxlength="4" />
+            
+        <div class="progress-container">
+          <div class="progress-bar" style="width: @(GetProgress())%"></div>
+        </div>
+      </div>
+
+      <div class="terminal-footer">
+        <p>> _CHARACTER_POOL: @charPool</p>
+        <p>> _ATTEMPTS_LOGGED: @attempts</p>
+        <p class="debug-line">
+          > _SECRET_KEY: 
+          @if(showPassword) {
+            <span class="revealed-pass">@targetPassword</span>
+            <button class="mini-reset-btn" @onclick="ResetGame">[RE-LOCK SYSTEM]</button>
+          }
+          else
+          {
+            <button class="debug-btn" @onclick="() => showPassword = true">REVEAL</button>
+          }
+        </p>
+      </div>
+    </div>
+
+    @if (isCracked)
+    {
+      <button class="retry-btn" @onclick="ResetGame">INITIALIZE NEW BREACH</button>
+    }
+  }
+</div>
+
+@code {
+  private string targetPassword = "";
+  private string userInput = "";
+  private string maskedPassword = "";
+  private int length = 4;
+  private string charPool = "abcdefghijklmnopqrstuvwxyz0123456789";
+  private int attempts = 0;
+  private int maxAttempts = 5;
+  private bool showPassword = false;
+  private bool isCracked => userInput == targetPassword;
+  private bool isLockedOut => attempts >= maxAttempts && !isCracked;
+
+  protected override void OnInitialized() {
+    var random = new Random();
+    targetPassword = new string(Enumerable.Repeat(charPool, length).Select(s => s[random.Next(s.Length)]).ToArray());
+    maskedPassword = new string('*', length);
+  }
+
+  private string UserInput {
+    get => userInput;
+    set {
+      userInput = value;
+      if (userInput.Length == length) {
+        if (userInput != targetPassword) {
+          attempts++;
+          userInput = "";
+        }
+      }
+    }
+  }
+
+  private double CalculateEntropy() {
+    return Math.Round(Math.Log2(Math.Pow(charPool.Length, length)), 2);
+  }
+
+  private double GetProgress() {
+    if (string.IsNullOrEmpty(userInput)) return 0;
+    int correctChars = 0;
+    if (userInput.Length == length) {
+      attempts++;
+      userInput = "";
+    }
+    for (int i = 0; i < Math.Min(userInput.Length, targetPassword.Length); i++) {
+      if (userInput[i] == targetPassword[i]) correctChars++;
+    }
+    return (double)correctChars / targetPassword.Length * 100;
+  }
+
+  private void ResetGame() {
+    userInput = "";
+    attempts = 0;
+    showPassword = false;
+    OnInitialized();
+  }
+}
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  .cyber-container {
+    background-color: #0d0208;
+    color: #00ff41; 
+    font-family: 'Courier New', Courier, monospace;
+    padding: 2rem;
+    border: 2px solid #00ff41;
+    border-radius: 8px;
+    max-width: 500px;
+    margin: 20px auto;
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+  }
+
+  .glitch-text {
+    font-size: 30px;
+  }
+
+  .cyber-input {
+    background: transparent;
+    border: 1px solid #00ff41;
+    color: #00ff41;
+    width: 100%;
+    padding: 10px;
+    font-size: 1.2rem;
+    text-transform: lowercase;
+  }
+
+  .access-granted { 
+    color: #00ff41; 
+    text-align: center;
+  }
+
+  .access-denied { 
+    color: #ff003c; 
+    text-align: center;
+  }
+
+  .progress-container {
+    height: 10px;
+    background: #1a1a1a;
+    margin-top: 10px;
+    border: 1px solid #333;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: #00ff41;
+    transition: width 0.3s ease;
+  }
+
+  .terminal-footer p {
+    word-break: break-all; 
+    overflow-wrap: break-word; 
+    font-size: 0.8rem; 
+    line-height: 1.4;
+    margin-top: 16px;
+  }
+
+  .debug-line {
+    margin-top: 5px;
+    font-size: 0.8rem;
+    color: #00ff41;
+  }
+
+  .debug-btn {
+    background: transparent;
+    border: 1px dashed #00ff41;
+    color: #00ff41;
+    cursor: pointer;
+    font-size: 0.7rem;
+    padding: 0 4px;
+  }
+
+  .revealed-pass {
+    color: #ff003c;
+    font-weight: bold;
+    letter-spacing: 2px;
+  }
+
+  .shake {
+    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+  }
+
+  @@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+  }
+
+  .pulse {
+    animation: pulse-green 2s infinite;
+  }
+
+  @@keyframes pulse-green {
+    0% { text-shadow: 0 0 0px #00ff41; }
+    50% { text-shadow: 0 0 15px #00ff41; }
+    100% { text-shadow: 0 0 0px #00ff41; }
+  }
+</style>
