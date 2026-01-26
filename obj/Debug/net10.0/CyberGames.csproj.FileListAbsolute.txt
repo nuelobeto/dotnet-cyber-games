@@ -83,3 +83,4 @@
 /Users/nuel/Desktop/work/personal/dotnet/CyberGames/obj/Debug/net10.0/CyberGames.pdb
 /Users/nuel/Desktop/work/personal/dotnet/CyberGames/obj/Debug/net10.0/CyberGames.genruntimeconfig.cache
 /Users/nuel/Desktop/work/personal/dotnet/CyberGames/obj/Debug/net10.0/ref/CyberGames.dll
+/Users/nuel/Desktop/work/personal/dotnet/CyberGames/obj/Debug/net10.0/CyberGames.sourcelink.json
