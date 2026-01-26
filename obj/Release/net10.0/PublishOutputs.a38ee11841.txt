@@ -1,0 +1,7 @@
+/Users/nuel/Desktop/work/personal/dotnet/CyberGames/bin/Release/net10.0/publish/CyberGames
+/Users/nuel/Desktop/work/personal/dotnet/CyberGames/bin/Release/net10.0/publish/appsettings.Development.json
+/Users/nuel/Desktop/work/personal/dotnet/CyberGames/bin/Release/net10.0/publish/appsettings.json
+/Users/nuel/Desktop/work/personal/dotnet/CyberGames/bin/Release/net10.0/publish/CyberGames.dll
+/Users/nuel/Desktop/work/personal/dotnet/CyberGames/bin/Release/net10.0/publish/CyberGames.runtimeconfig.json
+/Users/nuel/Desktop/work/personal/dotnet/CyberGames/bin/Release/net10.0/publish/CyberGames.pdb
+/Users/nuel/Desktop/work/personal/dotnet/CyberGames/bin/Release/net10.0/publish/CyberGames.deps.json
