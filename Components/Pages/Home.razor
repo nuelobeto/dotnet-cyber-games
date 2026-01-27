@@ -5,10 +5,10 @@
 <div class="hub-container">
     <header class="hub-header">
         <h1 class="glitch">CYBER GAMES HUB</h1>
-        <p class="subtitle">30 Days of .NET & Cybersecurity Mastery</p>
+        <p class="subtitle">30 Days of .NET</p>
         <div class="stats-row">
             <span class="stat">PROJECT_STATUS: ACTIVE</span>
-            <span class="stat">CURRENT_PHASE: 01/30</span>
+            <span class="stat">CURRENT_PHASE: 02/30</span>
         </div>
     </header>
 
@@ -20,7 +20,14 @@
             <span class="tag">COMPLETED</span>
         </a>
 
-        @for (int i = 2; i <= 3; i++)
+        <a href="/digital-lock-pick" class="game-card active">
+            <div class="card-id">DAY_02</div>
+            <h3>Digital Lock Pick</h3>
+            <p>Focus: Timing & State Synchronization</p>
+            <span class="tag">COMPLETED</span>
+        </a>
+
+        @for (int i = 3; i <= 4; i++)
         {
             <div class="game-card locked">
                 <div class="card-id">DAY_0@(i)</div>

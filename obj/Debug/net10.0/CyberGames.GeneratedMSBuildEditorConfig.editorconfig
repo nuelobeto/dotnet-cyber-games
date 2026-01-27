@@ -34,6 +34,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Db3VudGVyLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
+[/Users/nuel/Desktop/work/personal/dotnet/CyberGames/Components/Pages/DigitalLockPick.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9EaWdpdGFsTG9ja1BpY2sucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
 [/Users/nuel/Desktop/work/personal/dotnet/CyberGames/Components/Pages/Error.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9FcnJvci5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 

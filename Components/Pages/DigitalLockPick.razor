@@ -1,0 +1,289 @@
+@page "/digital-lock-pick"
+@rendermode InteractiveServer
+@using System.Diagnostics
+
+<PageTitle>Digital Lock Pick</PageTitle>
+
+<div class="container">
+    <h1>🔐 Digital Lock Pick</h1>
+    <p class="subtitle">Exploit unstable timing windows before lockdown.</p>
+
+    <div class="stats">
+        <span>⏱ @timeLeft s</span>
+        <span>🎯 @attemptsLeft / 5</span>
+        <span>🔓 @successfulHits / 4</span>
+        <span class="@syncClass">@syncState</span>
+    </div>
+
+    <div class="lock">
+        <div class="core @syncClass"></div>
+    </div>
+
+    <button @onclick="AttemptPick"
+            disabled="@gameOver"
+            class="action">
+        Pick Lock
+    </button>
+
+    @if (!string.IsNullOrEmpty(feedback))
+    {
+        <p class="feedback">@feedback</p>
+    }
+
+    @if (gameOver)
+    {
+        <button class="restart" @onclick="Restart">
+            🔄 Restart
+        </button>
+    }
+</div>
+
+@code {
+    const int GameDuration = 20;
+    const int RequiredHits = 4;
+    const int MaxAttempts = 5;
+
+    const int TickMs = 100;                
+    const int VulnerableWindowMs = 500;    
+    int timeLeft;
+    int elapsedMs;
+    int successfulHits;
+    int attemptsLeft;
+    bool gameOver;
+    string syncState = "LOCKED";
+    string syncClass = "locked";
+    string feedback = "";
+
+    HashSet<int> vulnerableSeconds = new();
+    Random rng = new();
+
+    System.Threading.Timer? timer;
+
+    protected override void OnInitialized()
+    {
+        StartGame();
+    }
+
+    void StartGame()
+    {
+        timer?.Dispose();
+
+        timeLeft = GameDuration;
+        elapsedMs = 0;
+        successfulHits = 0;
+        attemptsLeft = MaxAttempts;
+        gameOver = false;
+        feedback = "";
+
+        GenerateVulnerableSeconds();
+        StartTimer();
+    }
+
+    void GenerateVulnerableSeconds()
+    {
+        vulnerableSeconds.Clear();
+
+        while (vulnerableSeconds.Count < RequiredHits)
+        {
+            vulnerableSeconds.Add(rng.Next(1, GameDuration - 1));
+        }
+    }
+
+    void StartTimer()
+    {
+        timer = new System.Threading.Timer(_ =>
+        {
+            InvokeAsync(() =>
+            {
+                if (gameOver) return;
+
+                elapsedMs += TickMs;
+
+                if (elapsedMs % 1000 == 0)
+                {
+                    timeLeft--;
+                }
+
+                UpdateSyncState();
+
+                if (timeLeft <= 0)
+                {
+                    Lockdown();
+                }
+
+                StateHasChanged();
+            });
+        }, null, TickMs, TickMs);
+    }
+
+    void UpdateSyncState()
+    {
+        int currentSecond = elapsedMs / 1000;
+        int msIntoSecond = elapsedMs % 1000;
+
+        if (
+            vulnerableSeconds.Contains(currentSecond) &&
+            msIntoSecond <= VulnerableWindowMs
+        )
+        {
+            syncState = "VULNERABLE";
+            syncClass = "open";
+        }
+        else if (
+            vulnerableSeconds.Contains(currentSecond) &&
+            msIntoSecond <= VulnerableWindowMs + 200
+        )
+        {
+            syncState = "SYNCING";
+            syncClass = "syncing";
+        }
+        else
+        {
+            syncState = "LOCKED";
+            syncClass = "locked";
+        }
+    }
+
+    void AttemptPick()
+    {
+        if (gameOver) return;
+
+        int currentSecond = elapsedMs / 1000;
+
+        if (syncState == "VULNERABLE")
+        {
+            successfulHits++;
+            vulnerableSeconds.Remove(currentSecond);
+
+            feedback = $"✅ Exploit landed ({successfulHits}/{RequiredHits})";
+
+            if (successfulHits >= RequiredHits)
+            {
+                feedback = "💥 SYSTEM BREACHED — MULTI-STAGE EXPLOIT COMPLETE";
+                EndGame();
+            }
+        }
+        else
+        {
+            attemptsLeft--;
+
+            feedback = syncState == "SYNCING"
+                ? "⚠️ Signal unstable…"
+                : "⛔ Out of sync.";
+
+            if (attemptsLeft <= 0)
+            {
+                Lockdown();
+            }
+        }
+    }
+
+    void Lockdown()
+    {
+        feedback = "🚨 SYSTEM LOCKDOWN INITIATED";
+        EndGame();
+    }
+
+    void EndGame()
+    {
+        gameOver = true;
+        timer?.Dispose();
+    }
+
+    void Restart()
+    {
+        StartGame();
+    }
+}
+
+
+<style>
+    .container {
+        max-width: 420px;
+        margin: 60px auto;
+        padding: 24px;
+        background: #0a0f1f;
+        color: #e5e7eb;
+        border-radius: 14px;
+        font-family: monospace;
+        text-align: center;
+    }
+
+    .subtitle {
+        font-size: 0.85rem;
+        opacity: 0.75;
+        margin-bottom: 20px;
+    }
+
+    .stats {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        margin-bottom: 20px;
+    }
+
+    .lock {
+        margin: 20px 0;
+    }
+
+    .core {
+        width: 90px;
+        height: 90px;
+        margin: auto;
+        border-radius: 50%;
+        border: 4px solid;
+        transition: all 0.25s ease;
+    }
+
+    .locked {
+        color: #ef4444;
+        border-color: #ef4444;
+    }
+
+    .syncing {
+        color: #f59e0b;
+        border-color: #f59e0b;
+        animation: pulse 0.7s infinite;
+    }
+
+    .open {
+        color: #22c55e;
+        border-color: #22c55e;
+        box-shadow: 0 0 18px #22c55e;
+    }
+
+    .action {
+        padding: 10px 22px;
+        background: #1f2937;
+        border: none;
+        border-radius: 8px;
+        color: white;
+        cursor: pointer;
+    }
+
+    .action:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .feedback {
+        margin-top: 14px;
+        font-size: 0.85rem;
+    }
+
+    .restart {
+        margin-top: 16px;
+        padding: 8px 18px;
+        background: #2563eb;
+        border: none;
+        border-radius: 6px;
+        color: white;
+        cursor: pointer;
+    }
+
+    @@keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.06); }
+        100% { transform: scale(1); }
+    }
+</style>
