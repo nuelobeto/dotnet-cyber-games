@@ -1,0 +1,198 @@
+@page "/packet-catcher"
+@using System.Timers
+@rendermode InteractiveServer
+
+<PageTitle>Packet Catcher</PageTitle>
+
+<div class="game-info">
+    <h3>Network Integrity: @Health% | Score: @Score</h3>
+    <p>Rule: <b>Drop Malicious IPs by clicking on them when the cursor turns to a crosshair. Ensure not to click "Allow" on malicious IPs</b></p>
+</div>
+
+<div class="game-container" @onkeydown="HandleKeyDown" tabindex="0">
+    @foreach (var packet in ActivePackets)
+    {
+        @* The entire card is now the "Drop" zone *@
+        <div class="packet @(packet.IsMalicious ? "malicious" : "")" 
+             @onclick="() => ProcessPacket(packet, false)"
+             style="top: @(packet.VerticalPosition)px; left: @(packet.HorizontalOffset)%; cursor: crosshair;">
+            
+            <div class="packet-header">IP: @packet.SourceIp</div>
+            <div class="packet-body">PORT: @packet.Port</div>
+            
+            <div class="controls">
+                @* stopPropagation prevents the card's 'Drop' logic from firing when you click 'Allow' *@
+                <button class="allow-btn" @onclick:stopPropagation @onclick="() => ProcessPacket(packet, true)">
+                    ALLOW
+                </button>
+            </div>
+        </div>
+    }
+
+    @if (Health <= 0)
+    {
+        <div class="game-over">
+            <h2>SYSTEM COMPROMISED</h2>
+            <button onclick="window.location.reload()">REBOOT</button>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Packet> ActivePackets = new();
+    private int Score = 0;
+    private int Health = 100;
+    private Timer? _gameLoop;
+    private Random _rng = new();
+
+    protected override void OnInitialized()
+    {
+        // Start the game loop (runs every 50ms)
+        _gameLoop = new Timer(50);
+        _gameLoop.Elapsed += UpdateGame;
+        _gameLoop.AutoReset = true;
+        _gameLoop.Enabled = true;
+    }
+
+    private void UpdateGame(object? sender, ElapsedEventArgs e)
+    {
+        if (Health <= 0) 
+        {
+        _gameLoop?.Stop(); // Optional: Stop the timer entirely for performance
+        return;
+        }
+        InvokeAsync(() =>
+        {
+            // Move packets down
+            foreach (var p in ActivePackets)
+            {
+                p.VerticalPosition += 5;
+            }
+
+            // Penalty for packets that fall off the screen (unprocessed traffic)
+            var missed = ActivePackets.Where(p => p.VerticalPosition > 600).ToList();
+            foreach (var p in missed)
+            {
+                if (p.IsMalicious) Health -= 10; 
+                ActivePackets.Remove(p);
+            }
+
+            // Spawn new packets
+            if (_rng.Next(0, 20) > 17) SpawnPacket();
+
+            StateHasChanged();
+        });
+    }
+
+    private void SpawnPacket()
+    {
+        ActivePackets.Add(new Packet {
+            SourceIp = $"{_rng.Next(1, 255)}.{_rng.Next(1, 255)}.0.1",
+            Port = _rng.Next(0, 10) > 7 ? 8080 : 443,
+            IsMalicious = _rng.Next(0, 10) > 6,
+            HorizontalOffset = _rng.Next(10, 80)
+        });
+    }
+
+    private void ProcessPacket(Packet packet, bool allowed)
+{
+    var target = ActivePackets.FirstOrDefault(p => p.Id == packet.Id);
+    if (target == null) return;
+
+    bool isThreat = target.Port == 8080 || target.IsMalicious;
+    
+    // Correct Action
+    if (allowed && !isThreat) 
+    {
+        Score += 10;
+    }
+    else if (!allowed && isThreat) 
+    {
+        Score += 20;
+    }
+    // Mistakes (Allowing a threat OR Dropping clean data)
+    else 
+    {
+        Health -= 15;
+        Score = Math.Max(0, Score - 50); // Deduct 50 points, floor at 0
+    }
+
+    ActivePackets.Remove(target);
+    StateHasChanged();
+}
+
+    private void HandleKeyDown(KeyboardEventArgs e) { /* Add hotkeys here */ }
+
+    public class Packet
+    {
+        public Guid Id { get; set; } = Guid.NewGuid();
+        public string SourceIp { get; set; } = "";
+        public int Port { get; set; }
+        public double VerticalPosition { get; set; }
+        public double HorizontalOffset { get; set; }
+        public bool IsMalicious { get; set; }
+    }
+}
+
+<style>
+    .game-container {
+        position: relative;
+        width: 100%;
+        height: 600px;
+        background: #0d1117;
+        border: 2px solid #30363d;
+        overflow: hidden;
+        color: #c9d1d9;
+        font-family: 'Courier New', Courier, monospace;
+    }
+
+    .packet {
+        position: absolute;
+        width: 160px;
+        background: #161b22;
+        border: 1px solid #58a6ff;
+        padding: 8px;
+        border-radius: 4px;
+        transition: transform 0.1s;
+        user-select: none; /* Prevents text highlighting while clicking fast */
+    }
+
+    .packet:hover {
+        background: #1c2128;
+        border-width: 2px;
+        transform: scale(1.05);
+        z-index: 10;
+    }
+
+    .packet.malicious { border-color: #f85149; box-shadow: 0 0 10px rgba(248, 81, 73, 0.2); }
+
+    .allow-btn {
+        width: 100%;
+        background: #238636;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        padding: 4px;
+        margin-top: 8px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .allow-btn:hover { background: #2ea043; }
+
+    .packet-header { font-size: 0.7rem; color: #8b949e; border-bottom: 1px solid #30363d; }
+
+    .controls button { font-size: 0.6rem; cursor: pointer; margin-top: 5px; }
+
+    .drop-btn { background: #da3633; color: white; border: none; }
+
+    .game-over {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        background: rgba(0,0,0,0.9);
+        padding: 2rem;
+        border: 2px solid red;
+    }
+</style>
