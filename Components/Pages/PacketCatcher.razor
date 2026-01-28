@@ -12,7 +12,6 @@
 <div class="game-container" @onkeydown="HandleKeyDown" tabindex="0">
     @foreach (var packet in ActivePackets)
     {
-        @* The entire card is now the "Drop" zone *@
         <div class="packet @(packet.IsMalicious ? "malicious" : "")" 
              @onclick="() => ProcessPacket(packet, false)"
              style="top: @(packet.VerticalPosition)px; left: @(packet.HorizontalOffset)%; cursor: crosshair;">
@@ -21,7 +20,6 @@
             <div class="packet-body">PORT: @packet.Port</div>
             
             <div class="controls">
-                @* stopPropagation prevents the card's 'Drop' logic from firing when you click 'Allow' *@
                 <button class="allow-btn" @onclick:stopPropagation @onclick="() => ProcessPacket(packet, true)">
                     ALLOW
                 </button>
@@ -47,7 +45,6 @@
 
     protected override void OnInitialized()
     {
-        // Start the game loop (runs every 50ms)
         _gameLoop = new Timer(50);
         _gameLoop.Elapsed += UpdateGame;
         _gameLoop.AutoReset = true;
@@ -58,18 +55,16 @@
     {
         if (Health <= 0) 
         {
-        _gameLoop?.Stop(); // Optional: Stop the timer entirely for performance
+        _gameLoop?.Stop(); 
         return;
         }
         InvokeAsync(() =>
         {
-            // Move packets down
             foreach (var p in ActivePackets)
             {
                 p.VerticalPosition += 5;
             }
 
-            // Penalty for packets that fall off the screen (unprocessed traffic)
             var missed = ActivePackets.Where(p => p.VerticalPosition > 600).ToList();
             foreach (var p in missed)
             {
@@ -77,7 +72,6 @@
                 ActivePackets.Remove(p);
             }
 
-            // Spawn new packets
             if (_rng.Next(0, 20) > 17) SpawnPacket();
 
             StateHasChanged();
@@ -101,7 +95,6 @@
 
     bool isThreat = target.Port == 8080 || target.IsMalicious;
     
-    // Correct Action
     if (allowed && !isThreat) 
     {
         Score += 10;
@@ -110,18 +103,17 @@
     {
         Score += 20;
     }
-    // Mistakes (Allowing a threat OR Dropping clean data)
     else 
     {
         Health -= 15;
-        Score = Math.Max(0, Score - 50); // Deduct 50 points, floor at 0
+        Score = Math.Max(0, Score - 50); 
     }
 
     ActivePackets.Remove(target);
     StateHasChanged();
 }
 
-    private void HandleKeyDown(KeyboardEventArgs e) { /* Add hotkeys here */ }
+    private void HandleKeyDown(KeyboardEventArgs e) { }
 
     public class Packet
     {
@@ -154,7 +146,7 @@
         padding: 8px;
         border-radius: 4px;
         transition: transform 0.1s;
-        user-select: none; /* Prevents text highlighting while clicking fast */
+        user-select: none; 
     }
 
     .packet:hover {
