@@ -1,0 +1,350 @@
+@page "/encryption-snake"
+@using System.Timers
+@rendermode InteractiveServer
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Encryption Snake</PageTitle>
+
+<div @ref="gameContainer" class="game-container" @onkeydown="HandleKeyDown" tabindex="0">
+    <div class="stats">
+        <span>Status: <span class="status-text">@gameState</span></span>
+        <span>Bits Encrypted: <strong>@score</strong></span>
+    </div>
+
+    <div class="controls">
+      @if (gameState == GameState.Initializing)
+    {
+        
+            <button @onclick="StartGame">INITIALIZE LINK</button>
+    }
+        @if (gameState != GameState.GameOver && gameState != GameState.Initializing)
+        {
+            <button @onclick="TogglePause" class="btn-secondary">
+                @(gameState == GameState.Paused ? "RESUME LINK" : "PAUSE ENCRYPTION")
+            </button>
+        }
+        @if (gameState == GameState.Running)
+        {
+<button @onclick="RestartGame" class="btn-danger">RESET SYSTEM</button>
+        }
+        
+    </div>
+
+    <div class="grid">
+        @for (int row = 0; row < GridHeight; row++)
+        {
+            @for (int col = 0; col < GridWidth; col++)
+            {
+                var x = col;
+                var y = row;
+                <div class="cell @GetCellClass(x, y)"></div>
+            }
+        }
+    </div>
+
+    @if (gameState == GameState.GameOver)
+    {
+        <div class="overlay">
+            <h2>ENCRYPTION COMPROMISED</h2>
+            <button @onclick="RestartGame">Re-establish Link</button>
+        </div>
+    }
+</div>
+
+@code {
+  private ElementReference gameContainer;
+    // Enums for Day 4 Focus
+    private enum Direction { Up, Down, Left, Right }
+    private enum GameState { Initializing, Running, Paused, GameOver }
+
+    private GameState gameState = GameState.Initializing;
+    private Direction currentDirection = Direction.Right;
+    
+    // Using a List to represent the Snake, but applying Queue (FIFO) logic
+    private List<Coordinate> snakeBody = new();
+    private Coordinate food;
+    private int score = 0;
+    private Timer? gameTimer;
+
+    private const int GridWidth = 20;
+    private const int GridHeight = 20;
+
+    protected override void OnInitialized()
+    {
+        RestartGameInternal();
+        gameState = GameState.Initializing;
+    }
+
+    // 🔑 Auto-focus on first render
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("focusElement", gameContainer);
+        }
+    }
+
+    private void ResetBoard()
+{
+    snakeBody = new List<Coordinate> { new Coordinate(10, 10) };
+    currentDirection = Direction.Right;
+    score = 0;
+    SpawnFood();
+}
+
+private async Task StartGame()
+    {
+        ResetBoard();
+        gameState = GameState.Running;
+
+        gameTimer?.Dispose();
+        gameTimer = new Timer(150);
+        gameTimer.Elapsed += GameTick;
+        gameTimer.AutoReset = true;
+        gameTimer.Enabled = true;
+
+        // 🔑 Re-focus after button click
+        await JSRuntime.InvokeVoidAsync("focusElement", gameContainer);
+    }
+    
+    @* private void StartGame()
+{
+    ResetBoard();
+    gameState = GameState.Running;
+    
+    gameTimer?.Dispose();
+    gameTimer = new Timer(150);
+    gameTimer.Elapsed += GameTick;
+    gameTimer.AutoReset = true;
+    gameTimer.Enabled = true;
+} *@
+
+private async Task RestartGame()
+    {
+        RestartGameInternal();
+
+        // 🔑 Re-focus after reset
+        await JSRuntime.InvokeVoidAsync("focusElement", gameContainer);
+    }
+
+    @* private void RestartGame()
+    {
+        snakeBody = new List<Coordinate> { new Coordinate(10, 10) };
+        currentDirection = Direction.Right;
+        score = 0;
+        SpawnFood();
+        gameState = GameState.Running;
+        
+        gameTimer?.Dispose();
+        gameTimer = new Timer(150); // Speed in ms
+        gameTimer.Elapsed += GameTick;
+        gameTimer.AutoReset = true;
+        gameTimer.Enabled = true;
+    } *@
+
+    // Internal sync restart (used by OnInitialized)
+    private void RestartGameInternal()
+    {
+        snakeBody = new List<Coordinate> { new Coordinate(10, 10) };
+        currentDirection = Direction.Right;
+        score = 0;
+        SpawnFood();
+        gameState = GameState.Running;
+
+        gameTimer?.Dispose();
+        gameTimer = new Timer(150);
+        gameTimer.Elapsed += GameTick;
+        gameTimer.AutoReset = true;
+        gameTimer.Enabled = true;
+    }
+
+    private void TogglePause()
+    {
+        if (gameState == GameState.Running)
+        {
+            gameState = GameState.Paused;
+            gameTimer?.Stop();
+        }
+        else if (gameState == GameState.Paused)
+        {
+            gameState = GameState.Running;
+            gameTimer?.Start();
+        }
+    }
+
+    private void GameTick(object? source, ElapsedEventArgs e)
+    {
+        if (gameState != GameState.Running) return;
+
+        var head = snakeBody.Last();
+        var newHead = currentDirection switch
+        {
+            Direction.Up => new Coordinate(head.X, head.Y - 1),
+            Direction.Down => new Coordinate(head.X, head.Y + 1),
+            Direction.Left => new Coordinate(head.X - 1, head.Y),
+            Direction.Right => new Coordinate(head.X + 1, head.Y),
+            _ => head
+        };
+
+        // Collision Logic
+        if (IsCollision(newHead))
+        {
+            gameState = GameState.GameOver;
+            gameTimer?.Enabled = false;
+        }
+        else
+        {
+            // QUEUE LOGIC: Enqueue (Add) the new head
+            snakeBody.Add(newHead);
+
+            if (newHead.X == food.X && newHead.Y == food.Y)
+            {
+                score += 128; // 128-bit encryption!
+                SpawnFood();
+            }
+            else
+            {
+                // QUEUE LOGIC: Dequeue (Remove) the tail if no food eaten
+                snakeBody.RemoveAt(0);
+            }
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private bool IsCollision(Coordinate newHead)
+    {
+        return newHead.X < 0 || newHead.X >= GridWidth ||
+               newHead.Y < 0 || newHead.Y >= GridHeight ||
+               snakeBody.Contains(newHead);
+    }
+
+    private void SpawnFood()
+    {
+        var rand = new Random();
+        food = new Coordinate(rand.Next(0, GridWidth), rand.Next(0, GridHeight));
+        if (snakeBody.Contains(food)) SpawnFood(); // Don't spawn on snake
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        currentDirection = e.Key switch
+        {
+            "ArrowUp" when currentDirection != Direction.Down => Direction.Up,
+            "ArrowDown" when currentDirection != Direction.Up => Direction.Down,
+            "ArrowLeft" when currentDirection != Direction.Right => Direction.Left,
+            "ArrowRight" when currentDirection != Direction.Left => Direction.Right,
+            _ => currentDirection
+        };
+    }
+
+    private string GetCellClass(int x, int y)
+    {
+        if (snakeBody.Last().X == x && snakeBody.Last().Y == y) return "snake-head";
+        if (snakeBody.Contains(new Coordinate(x, y))) return "snake-body";
+        if (food.X == x && food.Y == y) return "food";
+        return "";
+    }
+
+    public record struct Coordinate(int X, int Y);
+}
+
+<style>
+    .game-container {
+        width: fit-content;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: #0d1117;
+        color: #00ff41;
+        font-family: 'Courier New', Courier, monospace;
+        padding: 20px;
+        outline: none;
+        position: relative;
+        margin: auto;
+    }
+
+    .stats {
+        width: 400px;
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(20, 20px);
+        grid-template-rows: repeat(20, 20px);
+        gap: 1px;
+        border: 2px solid #30363d;
+        background: #161b22;
+    }
+
+    .cell {
+        width: 20px;
+        height: 20px;
+    }
+
+    .snake-head {
+        background: #fff;
+        box-shadow: 0 0 10px #fff;
+        border-radius: 2px;
+    }
+
+    .snake-body {
+        background: #00ff41;
+        border: 1px solid #0d1117;
+    }
+
+    .food {
+        background: #ff8c00;
+        border-radius: 50%;
+        box-shadow: 0 0 8px #ff8c00;
+        animation: pulse 1s infinite;
+    }
+
+    .overlay {
+        width: 100%;
+        position: absolute;
+        top: 50%;
+        background: rgba(0,0,0,0.85);
+        padding: 2rem;
+        border: 2px solid #ff3e3e;
+        text-align: center;
+    }
+
+    button {
+        background: #00ff41;
+        border: none;
+        padding: 10px 20px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    .controls {
+        margin-bottom: 15px;
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn-secondary {
+        background: #21262d;
+        color: #c9d1d9;
+        border: 1px solid #30363d;
+    }
+
+    .btn-danger {
+        background: #890000;
+        color: white;
+    }
+
+    button:hover {
+        filter: brightness(1.2);
+    }
+
+    @@keyframes pulse {
+        0% { opacity: 0.6; }
+        50% { opacity: 1; }
+        100% { opacity: 0.6; }
+    }
+</style>
