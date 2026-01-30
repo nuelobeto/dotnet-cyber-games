@@ -1,0 +1,260 @@
+@page "/sql-invaders"
+@using System.Timers
+@rendermode InteractiveServer
+@implements IDisposable
+
+<PageTitle>SQL Invaders</PageTitle>
+
+<div class="game-wrapper" @onkeydown="HandleKeyDown" @onkeyup="HandleKeyUp" tabindex="0">
+    <div class="stats">
+        <span>Sanitized: @score</span>
+        <span>DB Integrity: @health%</span>
+    </div>
+
+    <div class="game-container">
+        @foreach (var enemy in enemies)
+        {
+            <div class="enemy" style="left: @(enemy.X)px; top: @(enemy.Y)px;">
+                @enemy.Payload
+            </div>
+        }
+
+        @foreach (var bolt in bolts)
+        {
+            <div class="bolt" style="left: @(bolt.X)px; top: @(bolt.Y)px;"></div>
+        }
+
+        <div class="player" style="left: @(playerX)px;">
+            <div class="cannon"></div>
+            FW-SHIELD
+        </div>
+
+        @if (gameOver)
+        {
+            <div class="overlay">
+                <h1>DATABASE BREACHED</h1>
+                <p>SQL Injection Successful.</p>
+                <button @onclick="ResetGame">REBOOT SYSTEM</button>
+            </div>
+        }
+
+        @if (!gameOver && health == 100 && score == 0)
+        {
+            <div class="instructions">CLICK IN THE GAME AREA | USE ARROWS TO MOVE | SPACE TO SANITIZE</div>
+        }
+    </div>
+</div>
+
+@code {
+    private double playerX = 350;
+    private int score = 0;
+    private int health = 100;
+    private bool gameOver = false;
+    private Timer? gameLoop;
+
+    // Key Tracking
+    private bool isLeftPressed = false;
+    private bool isRightPressed = false;
+
+    private List<GameObject> enemies = new();
+    private List<GameObject> bolts = new();
+    private Random rnd = new();
+
+    protected override void OnInitialized()
+    {
+        gameLoop = new Timer(20);
+        gameLoop.Elapsed += UpdateGame;
+        gameLoop.Start();
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "ArrowLeft") isLeftPressed = true;
+        if (e.Key == "ArrowRight") isRightPressed = true;
+        if (e.Key == " ") FireBolt();
+    }
+
+    private void HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "ArrowLeft") isLeftPressed = false;
+        if (e.Key == "ArrowRight") isRightPressed = false;
+    }
+
+    private void UpdateGame(object? sender, ElapsedEventArgs e)
+    {
+        if (gameOver) return;
+
+        // 1. Smooth Movement Logic
+        if (isLeftPressed && playerX > 0) playerX -= 8;
+        if (isRightPressed && playerX < 700) playerX += 8;
+
+        // 2. Move Bolts
+        foreach (var bolt in bolts.ToList())
+        {
+            bolt.Y -= 12;
+            if (bolt.Y < 0) bolts.Remove(bolt);
+        }
+
+        // 3. Move Enemies & Collision Detection
+        foreach (var enemy in enemies.ToList())
+        {
+            enemy.Y += 2.0 + (score / 15.0);
+
+            // AABB Collision Detection
+            var hitBolt = bolts.FirstOrDefault(b => 
+                b.X < enemy.X + 100 && 
+                b.X + 5 > enemy.X && 
+                b.Y < enemy.Y + 25 && 
+                b.Y + 15 > enemy.Y);
+
+            if (hitBolt != null)
+            {
+                bolts.Remove(hitBolt);
+                enemies.Remove(enemy);
+                score++;
+            }
+
+            if (enemy.Y > 560)
+            {
+                health -= 10;
+                enemies.Remove(enemy);
+                if (health <= 0) gameOver = true;
+            }
+        }
+
+        // Spawning Logic
+        if (rnd.Next(0, 100) < 3 && enemies.Count < 7) SpawnEnemy();
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void SpawnEnemy()
+    {
+        string[] payloads = { "'; DROP TABLE Users--", "' OR 1=1 --", "UNION SELECT password", "xp_cmdshell", "WAITFOR DELAY '0:0:5'" };
+        enemies.Add(new GameObject { X = rnd.Next(20, 680), Y = -40, Payload = payloads[rnd.Next(payloads.Length)] });
+    }
+
+    private void FireBolt() 
+    {
+        if (bolts.Count < 5) // Limit fire rate
+            bolts.Add(new GameObject { X = playerX + 47, Y = 540 });
+    }
+
+    private void ResetGame()
+    {
+        health = 100;
+        score = 0;
+        enemies.Clear();
+        bolts.Clear();
+        gameOver = false;
+    }
+
+    public void Dispose() => gameLoop?.Dispose();
+
+    class GameObject { public double X; public double Y; public string Payload = ""; }
+}
+
+<style>
+    .game-wrapper {
+        width: fit-content;
+        background: #050505;
+        color: #00ff41;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 40px;
+        margin: auto;
+    }
+
+    .stats {
+        width: 800px;
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        font-family: 'Courier New', monospace;
+        font-weight: bold;
+    }
+
+    .game-container {
+        width: 800px;
+        height: 600px;
+        border: 4px solid #333;
+        position: relative;
+        overflow: hidden;
+        background: black;
+    }
+
+    .player {
+        position: absolute;
+        bottom: 20px;
+        width: 100px;
+        height: 35px;
+        background: #00ff41;
+        color: black;
+        font-family: 'Courier New';
+        font-weight: 900;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        box-shadow: 0 0 15px #00ff41;
+    }
+
+    .cannon {
+        position: absolute;
+        top: -8px;
+        left: 42px;
+        width: 16px;
+        height: 10px;
+        background: #00ff41;
+    }
+
+    .enemy {
+        position: absolute;
+        padding: 4px 8px;
+        border: 1px solid #ff4444;
+        color: #ff4444;
+        font-family: 'Courier New';
+        font-size: 0.85rem;
+        background: rgba(255, 0, 0, 0.1);
+        box-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+    }
+
+    .bolt {
+        position: absolute;
+        width: 6px;
+        height: 20px;
+        background: #00f2ff;
+        box-shadow: 0 0 10px #00f2ff;
+        border-radius: 2px;
+    }
+
+    .overlay, .instructions {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background: rgba(0,0,0,0.85);
+        text-align: center;
+    }
+
+    .instructions {
+        background: none;
+        bottom: 100px;
+        top: auto;
+        opacity: 0.6;
+        font-size: 0.9rem;
+    }
+
+    button {
+        background: #ff4444;
+        color: white;
+        border: none;
+        padding: 15px 30px;
+        font-family: 'Courier New';
+        font-weight: bold;
+        cursor: pointer;
+    }
+</style>

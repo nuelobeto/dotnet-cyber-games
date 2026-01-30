@@ -58,6 +58,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9QYWNrZXRDYXRjaGVyLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
+[/Users/nuel/Desktop/work/personal/dotnet/CyberGames/Components/Pages/SQLInvaders.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9TUUxJbnZhZGVycy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
 [/Users/nuel/Desktop/work/personal/dotnet/CyberGames/Components/Pages/Weather.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9XZWF0aGVyLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
