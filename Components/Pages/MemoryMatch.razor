@@ -1,0 +1,217 @@
+@page "/memory-match"
+@rendermode InteractiveServer
+@using System.Timers
+
+<PageTitle>Memory Match</PageTitle>
+
+<div class="game-container">
+    <div class="header">
+        <h1>Memory Match</h1>
+        <p>Analyze the memory sectors. Match the data fragments to bypass the vault lock.</p>
+        <div class="stats">
+            <span>Attempts: @attempts</span>
+            <span>Matches: @matches / @(totalPairs)</span>
+        </div>
+    </div>
+
+    <div class="memory-grid">
+        @for (int i = 0; i < cards.Length; i++)
+        {
+            int index = i;
+            <div class="card @(cards[index].IsFlipped || cards[index].IsMatched ? "flipped" : "")" 
+                 @onclick="() => FlipCard(index)">
+                <div class="card-inner">
+                    <div class="card-front">?</div>
+                    <div class="card-back">@cards[index].Value</div>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (matches == totalPairs)
+    {
+        <div class="overlay">
+            <h2>ACCESS GRANTED</h2>
+            <button @onclick="ResetGame">REBOOT SYSTEM</button>
+        </div>
+    }
+</div>
+
+@code {
+    private Card[] cards = Array.Empty<Card>();
+    private int? firstFlippedIndex;
+    private bool isProcessing = false;
+    private int attempts = 0;
+    private int matches = 0;
+    private int totalPairs = 8;
+
+    private string[] symbols = { "0x4F", "0xAC", "0x88", "0xFF", "0x2D", "0xE1", "0x12", "0xBC" };
+
+    protected override void OnInitialized()
+    {
+        ResetGame();
+    }
+
+    private void ResetGame()
+    {
+        attempts = 0;
+        matches = 0;
+        firstFlippedIndex = null;
+        
+        // Build the deck (2 of each symbol)
+        var deck = symbols.Concat(symbols).Select(s => new Card { Value = s }).ToArray();
+        
+        // C# Array Shuffling (Fisher-Yates)
+        Random rng = new Random();
+        int n = deck.Length;
+        while (n > 1)
+        {
+            n--;
+            int k = rng.Next(n + 1);
+            var value = deck[k];
+            deck[k] = deck[n];
+            deck[n] = value;
+        }
+        cards = deck;
+    }
+
+    private async Task FlipCard(int index)
+    {
+        if (isProcessing || cards[index].IsFlipped || cards[index].IsMatched) return;
+
+        cards[index].IsFlipped = true;
+
+        if (firstFlippedIndex == null)
+        {
+            firstFlippedIndex = index;
+        }
+        else
+        {
+            attempts++;
+            isProcessing = true;
+            StateHasChanged();
+
+            var firstCard = cards[firstFlippedIndex.Value];
+            var secondCard = cards[index];
+
+            if (firstCard.Value == secondCard.Value)
+            {
+                firstCard.IsMatched = true;
+                secondCard.IsMatched = true;
+                matches++;
+                isProcessing = false;
+                firstFlippedIndex = null;
+            }
+            else
+            {
+                await Task.Delay(1000); // Give user time to see the mismatch
+                firstCard.IsFlipped = false;
+                secondCard.IsFlipped = false;
+                isProcessing = false;
+                firstFlippedIndex = null;
+            }
+        }
+    }
+
+    public class Card
+    {
+        public string Value { get; set; } = "";
+        public bool IsFlipped { get; set; }
+        public bool IsMatched { get; set; }
+    }
+}
+
+<style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    :root {
+        --neon-green: #00ff41;
+        --dark-bg: #0a0a0a;
+    }
+
+    .game-container {
+        background-color: var(--dark-bg);
+        color: var(--neon-green);
+        font-family: 'Courier New', Courier, monospace;
+        width: fit-content;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px 20px 60px;
+        margin: auto;
+    }
+
+    .header { text-align: center; margin-bottom: 20px; }
+
+    .memory-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 100px);
+        gap: 10px;
+    }
+
+    .card {
+        width: 100px;
+        height: 100px;
+        perspective: 1000px;
+        cursor: pointer;
+    }
+
+    .card-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        transition: transform 0.6s;
+        transform-style: preserve-3d;
+        border: 1px solid var(--neon-green);
+    }
+
+    .card.flipped .card-inner {
+        transform: rotateY(180deg);
+    }
+
+    .card-front, .card-back {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
+
+    .card-back {
+        background-color: var(--neon-green);
+        color: black;
+        transform: rotateY(180deg);
+    }
+
+    .card-front {
+        background-color: #1a1a1a;
+    }
+
+    .overlay {
+        margin-top: 30px;
+        text-align: center;
+        border: 2px solid var(--neon-green);
+        padding: 20px;
+        animation: blink 1s infinite;
+    }
+
+    button {
+        background: var(--neon-green);
+        color: black;
+        border: none;
+        padding: 10px 20px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    @@keyframes blink {
+        50% { opacity: 0.5; }
+    }
+</style>
