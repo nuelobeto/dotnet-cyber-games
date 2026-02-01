@@ -1,0 +1,342 @@
+@page "/phishing-mail-sort"
+@using System.Text.RegularExpressions
+@using System.Timers
+@implements IDisposable
+@rendermode InteractiveServer
+
+<PageTitle>Phishing Mail Sort</PageTitle>
+
+<div class="game-container">
+    <div class="stats-bar">
+        <span>Score: @score</span>
+        <span>Time: @timeLeft</span>
+        <span>Accuracy: @(totalProcessed == 0 ? 100 : (score * 100 / totalProcessed))%</span>
+    </div>
+
+    @if (!gameActive)
+{
+    <div class="overlay">
+        @if (score == 0)
+        {
+            <h2>PHISHING MAIL SORT</h2>
+            <p>Sort incoming mail. Spot the phish!</p>
+            <button @onclick="StartGame">START MISSION</button>
+        }
+        else if (PerfectScore)
+        {
+            <h2 class="success">🎉 MISSION PERFECT 🎉</h2>
+            <p class="success">You identified every single email correctly.</p>
+            <p class="success"><strong>Final Score: @score</strong></p>
+            <button @onclick="StartGame">PLAY AGAIN</button>
+        }
+        else
+        {
+            <h2>GAME OVER</h2>
+            <p><strong>High Score: @score</strong></p>
+            <button @onclick="StartGame">PLAY AGAIN</button>
+        }
+
+        
+    </div>
+}
+
+    <div class="mail-desk">
+        @if (currentEmail != null)
+        {
+            <div class="email-card">
+                <div class="email-header">
+                    <strong>From:</strong> @currentEmail.Sender <br />
+                    <strong>Subject:</strong> @currentEmail.Subject
+                </div>
+                <div class="email-body">
+                    @currentEmail.Body
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="controls">
+        <button class="btn-safe" @onclick='() => ProcessMail(false)'>SAFE ✅</button>
+        <button class="btn-junk" @onclick='() => ProcessMail(true)'>JUNK ❌</button>
+    </div>
+</div>
+
+@code {
+    private int score = 0;
+    private int totalProcessed = 0;
+    private int timeLeft = 30;
+    private bool gameActive = false;
+    private bool PerfectScore => score == 10;
+
+    private Timer? gameTimer;
+
+    private List<EmailModel> emailDeck = new();
+    private int currentEmailIndex = 0;
+    private EmailModel? currentEmail;
+
+    // Regex patterns
+    private readonly Regex phishPattern = new(
+        @"(?i)(urgent|act now|verify|winner|free|account|password|suspicious|strictly confidential|click here)",
+        RegexOptions.Compiled);
+
+    private readonly Regex senderPattern = new(
+        @"(@[a-z0-9-]+\.[a-z]{2,})",
+        RegexOptions.Compiled);
+
+    private void StartGame()
+    {
+        score = 0;
+        totalProcessed = 0;
+        timeLeft = 30;
+        gameActive = true;
+
+        GenerateEmailDeck();
+        StartTimer();
+    }
+
+    private void StartTimer()
+    {
+        gameTimer?.Dispose();
+        gameTimer = new Timer(1000);
+
+        gameTimer.Elapsed += (s, e) =>
+        {
+            if (!gameActive) return;
+
+            if (timeLeft > 0)
+            {
+                timeLeft--;
+                InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                EndGame();
+            }
+        };
+
+        gameTimer.Start();
+    }
+
+    private void EndGame()
+    {
+        gameActive = false;
+        gameTimer?.Stop();
+        currentEmail = null;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void ProcessMail(bool userMarkedAsJunk)
+    {
+        if (!gameActive || currentEmail == null) return;
+
+        bool isPhish =
+            phishPattern.IsMatch(currentEmail.Subject) ||
+            phishPattern.IsMatch(currentEmail.Body) ||
+            currentEmail.IsPhishFlag;
+
+        if (userMarkedAsJunk == isPhish)
+        {
+            score++;
+        }
+
+        totalProcessed++;
+        MoveToNextEmail();
+    }
+
+    private void MoveToNextEmail()
+    {
+        currentEmailIndex++;
+
+        if (currentEmailIndex < emailDeck.Count)
+        {
+            currentEmail = emailDeck[currentEmailIndex];
+        }
+        else
+        {
+            EndGame();
+        }
+    }
+
+    private void GenerateEmailDeck()
+    {
+        emailDeck = new List<EmailModel>
+        {
+            // ───── PHISHING (5) ─────
+            new()
+            {
+                Sender = "admin-security@paypa1.co",
+                Subject = "URGENT: Account Locked",
+                Body = "We detected suspicious activity. Click here to verify immediately.",
+                IsPhishFlag = true
+            },
+            new()
+            {
+                Sender = "support@micros0ft.com",
+                Subject = "Password Expiry Notice",
+                Body = "Your password expires today. Act now.",
+                IsPhishFlag = true
+            },
+            new()
+            {
+                Sender = "bank-alert@secure-login.net",
+                Subject = "Unusual Login Attempt",
+                Body = "Verify your identity to restore access.",
+                IsPhishFlag = true
+            },
+            new()
+            {
+                Sender = "winner@promo-rewards.com",
+                Subject = "Congratulations! You Won",
+                Body = "Claim your free reward now.",
+                IsPhishFlag = true
+            },
+            new()
+            {
+                Sender = "it-helpdesk@company-support.co",
+                Subject = "Mailbox Quota Exceeded",
+                Body = "Increase your mailbox size immediately.",
+                IsPhishFlag = true
+            },
+
+            // ───── LEGIT (5) ─────
+            new()
+            {
+                Sender = "hr@company.com",
+                Subject = "Monthly Newsletter",
+                Body = "Company updates, birthdays, and announcements.",
+                IsPhishFlag = false
+            },
+            new()
+            {
+                Sender = "no-reply@github.com",
+                Subject = "New sign-in detected",
+                Body = "A new sign-in to your GitHub account was detected.",
+                IsPhishFlag = false
+            },
+            new()
+            {
+                Sender = "billing@spotify.com",
+                Subject = "Your Spotify receipt",
+                Body = "Thanks for your subscription.",
+                IsPhishFlag = false
+            },
+            new()
+            {
+                Sender = "team@notion.so",
+                Subject = "Workspace Updates",
+                Body = "Here’s what’s new in Notion.",
+                IsPhishFlag = false
+            },
+            new()
+            {
+                Sender = "events@company.com",
+                Subject = "Team Town Hall",
+                Body = "Reminder: Town hall this Friday at 2 PM.",
+                IsPhishFlag = false
+            }
+        };
+
+        // Shuffle the deck
+        emailDeck = emailDeck.OrderBy(_ => Random.Shared.Next()).ToList();
+
+        currentEmailIndex = 0;
+        currentEmail = emailDeck[currentEmailIndex];
+    }
+
+    public class EmailModel
+    {
+        public string Sender { get; set; } = "";
+        public string Subject { get; set; } = "";
+        public string Body { get; set; } = "";
+        public bool IsPhishFlag { get; set; }
+    }
+
+    public void Dispose()
+    {
+        gameTimer?.Dispose();
+    }
+}
+
+<style>
+    .game-container {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: #1a1a2e;
+        color: #e94560;
+        padding: 20px;
+        max-width: 600px;
+        margin: auto;
+        border: 4px solid #16213e;
+        border-radius: 10px;
+        position: relative;
+    }
+
+    .stats-bar {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        background: #16213e;
+        padding: 10px;
+        border-radius: 5px;
+        color: #ffffff;
+    }
+
+    .mail-desk {
+        min-height: 250px;
+        background: #0f3460;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+
+    .email-card {
+        background: white;
+        color: #333;
+        padding: 15px;
+        border-radius: 4px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    .email-header {
+        border-bottom: 1px solid #ccc;
+        margin-bottom: 10px;
+        padding-bottom: 5px;
+        font-size: 0.9rem;
+    }
+
+    .controls {
+        display: flex;
+        gap: 10px;
+    }
+
+    .controls button {
+        flex: 1;
+        padding: 15px;
+        border: none;
+        border-radius: 5px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: transform 0.1s;
+    }
+
+    .btn-safe { background: #4ecca3; color: white; }
+    .btn-junk { background: #e94560; color: white; }
+
+    .controls button:active { transform: scale(0.95); }
+
+    .overlay {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(15, 52, 96, 0.95);
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        border-radius: 10px;
+    }
+
+    .success {
+      color: #00ff41; 
+    }
+</style>
