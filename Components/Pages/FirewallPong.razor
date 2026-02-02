@@ -1,0 +1,225 @@
+@page "/firewall-pong"
+@using System.Timers
+@rendermode InteractiveServer
+@implements IDisposable
+
+<PageTitle>Firewall Pong - Cyber Games Day 8</PageTitle>
+
+<div class="game-wrap">
+    <div class="stats">
+        <span>Packets Filtered: @score</span>
+        <span>Integrity: @integrity%</span>
+    </div>
+
+    <div class="game-container" @onmousemove="MovePaddle">
+        @* The Firewall (Paddle) *@
+        <div class="paddle" style="top: @(paddleY)px;"></div>
+
+        @* The Data Packet (Ball) *@
+        <div class="packet @(isMalicious ? "malicious" : "")" 
+             style="left: @(ballX)px; top: @(ballY)px;"></div>
+        
+        @if (integrity <= 0)
+        {
+            <div class="overlay">
+                <h2>SYSTEM BREACH</h2>
+                <button @onclick="ResetGame">Reboot Firewall</button>
+            </div>
+        }
+    </div>
+    
+    <div class="info">
+        <p>Deflect incoming packets. Red packets have higher velocity signatures.</p>
+    </div>
+</div>
+
+@code {
+    // Game Constants
+    private const int GameHeight = 400;
+    private const int GameWidth = 600;
+    private const int PaddleHeight = 80;
+    private const int BallSize = 15;
+
+    // Game State
+    private double ballX = 300;
+    private double ballY = 200;
+    private double ballVx = -5; 
+    private double ballVy = 3;  
+    private double paddleY = 160;
+    private int score = 0;
+    private int integrity = 100;
+    private bool isMalicious = false;
+    private Timer? gameTimer;
+
+    protected override void OnInitialized()
+    {
+        StartGame();
+    }
+
+    private void StartGame()
+    {
+        gameTimer = new Timer(16); // ~60 FPS
+        gameTimer.Elapsed += UpdateGame;
+        gameTimer.AutoReset = true;
+        gameTimer.Enabled = true;
+    }
+
+    private void UpdateGame(object? sender, ElapsedEventArgs e)
+    {
+        if (integrity <= 0) return;
+
+        // Update Physics
+        ballX += ballVx;
+        ballY += ballVy;
+
+        // Top and Bottom Wall Collision
+        if (ballY <= 0 || ballY >= GameHeight - BallSize)
+        {
+            ballVy *= -1;
+        }
+
+        // Right Wall Collision (The Source)
+        if (ballX >= GameWidth - BallSize)
+        {
+            ballVx *= -1;
+        }
+
+        // Firewall (Paddle) Collision Logic
+        if (ballX <= 20) // Paddle X position
+        {
+            if (ballY + BallSize >= paddleY && ballY <= paddleY + PaddleHeight)
+            {
+                // Reflect and increase speed slightly
+                ballVx = Math.Abs(ballVx) + 0.5;
+                
+                // Physics focus: Change Vy based on where it hits the paddle
+                double relativeIntersectY = (paddleY + (PaddleHeight / 2)) - ballY;
+                ballVy = -(relativeIntersectY / (PaddleHeight / 2)) * 5;
+
+                score++;
+                isMalicious = new Random().Next(0, 10) > 7;
+                if(isMalicious) ballVx += 2; // Malicious packets move faster
+            }
+            else if (ballX <= 0)
+            {
+                // Breach!
+                integrity -= isMalicious ? 20 : 10;
+                ResetBall();
+            }
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void MovePaddle(MouseEventArgs e)
+    {
+        // Center paddle on mouse
+        double newY = e.OffsetY - (PaddleHeight / 2);
+        paddleY = Math.Clamp(newY, 0, GameHeight - PaddleHeight);
+    }
+
+    private void ResetBall()
+    {
+        ballX = 400;
+        ballY = 200;
+        ballVx = -5;
+        isMalicious = false;
+    }
+
+    private void ResetGame()
+    {
+        integrity = 100;
+        score = 0;
+        ResetBall();
+    }
+
+    public void Dispose()
+    {
+        gameTimer?.Stop();
+        gameTimer?.Dispose();
+    }
+}
+
+<style>
+    .game-wrap {
+      width: fit-content;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-family: 'Courier New', Courier, monospace;
+        background: #0d1117;
+        color: #58a6ff;
+        padding: 20px;
+        border-radius: 8px;
+        margin: auto;
+    }
+
+    .stats {
+        width: 600px;
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+
+    .game-container {
+        width: 600px;
+        height: 400px;
+        background: #161b22;
+        border: 2px solid #30363d;
+        position: relative;
+        overflow: hidden;
+        cursor: none;
+    }
+
+    .paddle {
+        position: absolute;
+        left: 10px;
+        width: 10px;
+        height: 80px;
+        background: #238636;
+        box-shadow: 0 0 10px #2ea043;
+        border-radius: 4px;
+    }
+
+    .packet {
+        position: absolute;
+        width: 15px;
+        height: 15px;
+        background: #58a6ff;
+        border-radius: 50%;
+        box-shadow: 0 0 8px #58a6ff;
+    }
+
+    .packet.malicious {
+        background: #f85149;
+        box-shadow: 0 0 12px #f85149;
+    }
+
+    .overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: #f85149;
+    }
+
+    button {
+        background: #238636;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        cursor: pointer;
+        border-radius: 4px;
+    }
+
+    .info {
+        margin-top: 20px;
+        text-align: center;
+        max-width: 500px;
+    }
+</style>

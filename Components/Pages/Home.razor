@@ -8,7 +8,7 @@
         <p class="subtitle">30 Days of .NET</p>
         <div class="stats-row">
             <span class="stat">PROJECT_STATUS: ACTIVE</span>
-            <span class="stat">CURRENT_PHASE: 07/30</span>
+            <span class="stat">CURRENT_PHASE: 08/30</span>
         </div>
     </header>
 
@@ -62,10 +62,17 @@
             <span class="tag">COMPLETED</span>
         </a>
 
-        @for (int i = 8; i <= 9; i++)
+        <a href="/firewall-pong" class="game-card active">
+            <div class="card-id">DAY_08</div>
+            <h3>Firewall Pong</h3>
+            <p>Focus: Velocity, Physics</p>
+            <span class="tag">COMPLETED</span>
+        </a>
+
+        @for (int i = 9; i <= 10; i++)
         {
             <div class="game-card locked">
-                <div class="card-id">DAY_0@(i)</div>
+                <div class="card-id">DAY_@(i < 10 ? "0" : "")@i</div>
                 <h3>[ENCRYPTED_DATA]</h3>
                 <p>Status: Locked. Access scheduled for Day @i.</p>
                 <span class="tag">LOCKED</span>
