@@ -26,6 +26,10 @@ build_property.EnableCodeStyleSeverity =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BcHAucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
+[/Users/nuel/Desktop/work/personal/dotnet/CyberGames/Components/Pages/Battleships.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9CYXR0bGVzaGlwcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
 [/Users/nuel/Desktop/work/personal/dotnet/CyberGames/Components/Pages/BruteForceGuess.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9CcnV0ZUZvcmNlR3Vlc3MucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
