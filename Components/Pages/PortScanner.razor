@@ -1,0 +1,212 @@
+@page "/port-scanner"
+@using System.Threading
+@rendermode InteractiveServer
+
+<PageTitle>Cyber Games: Port Scanner</PageTitle>
+
+<div class="game-container">
+    <div class="header">
+        <h1>PORT SCANNER v1.0</h1>
+        <div class="timer-display @(remainingTime <= 10 ? "critical" : "")">
+            LOCKOUT IN: @remainingTime.ToString("00")s
+        </div>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span>TARGET: 10.0.0.@targetNode</span>
+        </div>
+        <div class="stat-item wide">
+            <span>TRACE: @traceLevel%</span>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: @traceLevel%"></div>
+            </div>
+        </div>
+        <div class="stat-item">
+            <span>FOUND: @foundCount / 3</span>
+        </div>
+    </div>
+
+    @if (isGameOver)
+    {
+        <div class="overlay">
+            <h2 class="status-msg">
+                @if (foundCount >= 3) { <span class="text-success">SYSTEM MAPPED</span> }
+                else if (traceLevel >= 100) { <span class="text-danger">TRACE DETECTED</span> }
+                else { <span class="text-danger">LOCKOUT ACTIVE</span> }
+            </h2>
+            <button class="btn-scan" @onclick="ResetGame">RE-INITIALIZE</button>
+        </div>
+    }
+
+    <div class="port-grid">
+        @foreach (var port in portList)
+        {
+            <div class="port-card @GetPortClass(port)">
+                <span class="port-num">PORT @port</span>
+                @if (scanResults.ContainsKey(port))
+                {
+                    <span class="port-service">@scanResults[port]</span>
+                }
+                else if (activeScans.Contains(port))
+                {
+                    <div class="scanning-loader"></div>
+                }
+                else
+                {
+                    <button class="btn-mini" @onclick="() => ScanPort(port)" disabled="@isGameOver">SCAN</button>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private int targetNode;
+    private int traceLevel;
+    private int remainingTime;
+    private int foundCount;
+    private bool isGameOver;
+
+    private Dictionary<int, string> portLibrary = new()
+    {
+        { 21, "FTP" }, { 22, "SSH" }, { 25, "SMTP" }, { 53, "DNS" },
+        { 80, "HTTP" }, { 443, "HTTPS" }, { 3306, "MySQL" }, { 8080, "PROXY" }
+    };
+
+    private List<int> portList = new() { 21, 22, 25, 53, 80, 443, 3306, 8080, 23, 110, 143, 445 };
+    private Dictionary<int, string> scanResults = new();
+    private HashSet<int> activeScans = new();
+    private List<int> openPorts = new();
+
+    protected override void OnInitialized()
+    {
+        ResetGame();
+    }
+
+    private void ResetGame()
+    {
+        targetNode = new Random().Next(1, 254);
+        scanResults.Clear();
+        activeScans.Clear();
+        traceLevel = 0;
+        foundCount = 0;
+        remainingTime = 40; // 40 second limit
+        isGameOver = false;
+        
+        openPorts = portList.OrderBy(x => Guid.NewGuid()).Take(3).ToList();
+
+        // Start background loops
+        _ = CooldownLoop();
+        _ = TimerLoop();
+    }
+
+    private async Task TimerLoop()
+    {
+        while (remainingTime > 0 && !isGameOver)
+        {
+            await Task.Delay(1000);
+            remainingTime--;
+            CheckGameState();
+            StateHasChanged();
+        }
+    }
+
+    private async Task CooldownLoop()
+    {
+        while (!isGameOver)
+        {
+            await Task.Delay(1200); 
+            // Only cool down if no active scans are drawing attention
+            if (traceLevel > 0 && activeScans.Count == 0) 
+            {
+                traceLevel = Math.Max(0, traceLevel - 5);
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task ScanPort(int port)
+    {
+        if (activeScans.Contains(port) || scanResults.ContainsKey(port) || isGameOver) return;
+
+        activeScans.Add(port);
+        traceLevel += 18; // High cost for starting a scan
+
+        await Task.Delay(new Random().Next(1500, 3000));
+
+        if (activeScans.Contains(port)) // Safety check if game ended during delay
+        {
+            activeScans.Remove(port);
+
+            if (openPorts.Contains(port))
+            {
+                string service = portLibrary.GetValueOrDefault(port, "UNKNOWN");
+                scanResults.Add(port, "OPEN: " + service);
+                foundCount++;
+            }
+            else
+            {
+                scanResults.Add(port, "CLOSED");
+                traceLevel += 7; // Extra penalty for "missing"
+            }
+
+            CheckGameState();
+            StateHasChanged();
+        }
+    }
+
+    private void CheckGameState()
+    {
+        if (traceLevel >= 100 || remainingTime <= 0 || foundCount >= 3)
+        {
+            isGameOver = true;
+        }
+    }
+
+    private string GetPortClass(int port)
+    {
+        if (!scanResults.ContainsKey(port)) return "";
+        return scanResults[port].Contains("OPEN") ? "port-open" : "port-closed";
+    }
+}
+
+<style>
+    .game-container {
+        background-color: #0a0a0a;
+        color: #00ff41;
+        font-family: 'Courier New', Courier, monospace;
+        padding: 2rem;
+        max-width: 800px;
+        margin: auto;
+        border: 2px solid #004411;
+        position: relative;
+    }
+
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #004411; padding-bottom: 10px; }
+    
+    .timer-display { font-size: 1.2rem; font-weight: bold; color: #fff; }
+    .timer-display.critical { color: #ff003c; animation: blink 0.8s infinite; }
+
+    .stats-bar { display: flex; gap: 20px; align-items: center; margin: 20px 0; background: #111; padding: 10px; }
+    .stat-item.wide { flex-grow: 1; }
+    
+    .progress-bar { background: #222; height: 8px; border-radius: 4px; margin-top: 5px; overflow: hidden; }
+    .progress-fill { background: #00ff41; height: 100%; transition: width 0.5s ease; }
+
+    .port-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+    .port-card { background: #151515; border: 1px solid #333; padding: 15px; text-align: center; }
+    .port-open { border-color: #00ff41; color: #00ff41; box-shadow: inset 0 0 10px #004411; }
+    .port-closed { border-color: #441111; color: #666; }
+
+    .btn-mini { background: #00ff41; color: #000; border: none; padding: 4px 8px; cursor: pointer; font-size: 0.8rem; margin-top: 8px; }
+    .btn-mini:disabled { background: #004411; cursor: not-allowed; }
+
+    .overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; border: 2px solid #00ff41; }
+    .text-success { color: #00ff41; }
+    .text-danger { color: #ff003c; }
+
+    .scanning-loader { width: 15px; height: 15px; border: 2px solid #004411; border-top: 2px solid #00ff41; border-radius: 50%; animation: spin 1s linear infinite; margin: 10px auto; }
+    @@keyframes spin { 100% { transform: rotate(360deg); } }
+    @@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+</style>
