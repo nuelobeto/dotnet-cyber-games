@@ -1,0 +1,451 @@
+@page "/hash-match-tetris"
+@using System.Timers
+@using Microsoft.AspNetCore.Components.Web
+@rendermode InteractiveServer
+
+<PageTitle>Hash-Match Tetris</PageTitle>
+
+<div class="game-container" tabindex="0" @onkeydown="HandleKeyDown">
+
+    <div class="header">
+        <h1>HASH-MATCH</h1>
+        <p>Ensure Data Integrity • Match the Hex Hashes</p>
+    </div>
+
+    <div class="game-wrapper">
+
+        <!-- GRID -->
+        <div class="grid">
+            @for (int r = 0; r < Rows; r++)
+            {
+                <div class="grid-row">
+                    @for (int c = 0; c < Cols; c++)
+                    {
+                        var cell = Board[r, c];
+                        bool isCurrent = currentPiece.Any(p => p.r == r && p.c == c);
+
+                        string color = "#1a1a2e";
+                        string hash = "";
+
+                        if (cell.IsActive)
+                        {
+                            color = cell.Color;
+                            hash = cell.Hash;
+                        }
+                        else if (isCurrent)
+                        {
+                            color = currentColor;
+                            hash = currentHash;
+                        }
+
+                        <div class="cell"
+                             style="background-color:@color">
+                            @if (!string.IsNullOrEmpty(hash))
+                            {
+                                <span class="hash-label">@hash</span>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- STATS -->
+        <div class="stats">
+            <div class="stat-box">
+                <label>INTEGRITY SCORE</label>
+                <div class="value">@Score</div>
+            </div>
+
+            <div class="stat-box">
+                <label>SYSTEM STATUS</label>
+                <div class="value @(GameOver ? "critical" : "stable")">
+                    @(GameOver ? "COMPROMISED" : "SECURE")
+                </div>
+            </div>
+
+            <button class="btn-start" @onclick="StartGame">
+                REBOOT SYSTEM
+            </button>
+        </div>
+
+    </div>
+</div>
+
+@code {
+    // DATA STRUCTURES
+    public class BlockData
+    {
+        public bool IsActive { get; set; }
+        public string Color { get; set; } = "#1a1a2e";
+        public string Hash { get; set; } = "";
+    }
+
+    const int Rows = 16;
+    const int Cols = 10;
+
+    private BlockData[,] Board = new BlockData[Rows, Cols];
+
+    private List<(int r, int c)> currentPiece = new();
+    private string currentHash = "";
+    private string currentColor = "#4ecca3";
+
+    private Timer? gameTimer;
+    private bool GameOver = false;
+    private int Score = 0;
+
+    // INITIALIZATION
+    protected override void OnInitialized()
+    {
+        ResetBoard();
+    }
+
+    private void ResetBoard()
+    {
+        for (int r = 0; r < Rows; r++)
+        {
+            for (int c = 0; c < Cols; c++)
+            {
+                Board[r, c] = new BlockData();
+            }
+        }
+    }
+
+    // GAME START
+    private void StartGame()
+    {
+        ResetBoard();
+        Score = 0;
+        GameOver = false;
+
+        SpawnPiece();
+
+        gameTimer?.Dispose();
+        gameTimer = new Timer(500);
+        gameTimer.Elapsed += async (_, _) => await InvokeAsync(Tick);
+        gameTimer.Start();
+    }
+
+    // PIECES
+    private List<List<(int r, int c)>> Shapes = new()
+    {
+        // Square
+        new() { (0,4),(0,5),(1,4),(1,5) },
+
+        // Line
+        new() { (0,3),(0,4),(0,5),(0,6) },
+
+        // L
+        new() { (0,4),(1,4),(2,4),(2,5) },
+
+        // Reverse L
+        new() { (0,5),(1,5),(2,5),(2,4) },
+
+        // T
+        new() { (0,4),(0,3),(0,5),(1,4) }
+    };
+
+    private void SpawnPiece()
+    {
+        currentPiece = Shapes[Random.Shared.Next(Shapes.Count)]
+            .Select(p => (p.r, p.c))
+            .ToList();
+
+        currentHash = "0x" +
+            Guid.NewGuid().ToString("N")[..2].ToUpper();
+
+        currentColor = "#4ecca3";
+
+        if (!IsValidPosition(currentPiece))
+        {
+            GameOver = true;
+            gameTimer?.Stop();
+        }
+    }
+
+    // GAME LOOP
+    private void Tick()
+    {
+        if (GameOver) return;
+
+        if (CanMove(1, 0))
+        {
+            MovePiece(1, 0);
+        }
+        else
+        {
+            LockPiece();
+            CheckLines();
+            SpawnPiece();
+        }
+
+        StateHasChanged();
+    }
+
+    // MOVEMENT
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (GameOver) return;
+
+        switch (e.Key)
+        {
+            case "ArrowLeft":
+                if (CanMove(0, -1)) MovePiece(0, -1);
+                break;
+
+            case "ArrowRight":
+                if (CanMove(0, 1)) MovePiece(0, 1);
+                break;
+
+            case "ArrowDown":
+                if (CanMove(1, 0)) MovePiece(1, 0);
+                break;
+
+            case "ArrowUp":
+                RotatePiece();
+                break;
+        }
+
+        StateHasChanged();
+    }
+
+    private bool CanMove(int dr, int dc)
+    {
+        return currentPiece.All(p =>
+        {
+            int nr = p.r + dr;
+            int nc = p.c + dc;
+
+            return nr >= 0 &&
+                   nr < Rows &&
+                   nc >= 0 &&
+                   nc < Cols &&
+                   !Board[nr, nc].IsActive;
+        });
+    }
+
+    private void MovePiece(int dr, int dc)
+    {
+        currentPiece =
+            currentPiece
+            .Select(p => (p.r + dr, p.c + dc))
+            .ToList();
+    }
+
+    // 🔁 ROTATION SYSTEM
+    private void RotatePiece()
+    {
+        if (currentPiece.Count == 0) return;
+
+        // Square piece doesn't need rotation
+        if (IsSquarePiece()) return;
+
+        var pivot = currentPiece[1];
+
+        var rotated = new List<(int r, int c)>();
+
+        foreach (var block in currentPiece)
+        {
+            int relativeRow = block.r - pivot.r;
+            int relativeCol = block.c - pivot.c;
+
+            // 90° clockwise rotation
+            int newRow = pivot.r - relativeCol;
+            int newCol = pivot.c + relativeRow;
+
+            rotated.Add((newRow, newCol));
+        }
+
+        // Apply rotation if valid
+        if (IsValidPosition(rotated))
+        {
+            currentPiece = rotated;
+            return;
+        }
+
+        // Wall-kick attempt (shift right)
+        var kickedRight = rotated
+            .Select(p => (p.r, p.c + 1))
+            .ToList();
+
+        if (IsValidPosition(kickedRight))
+        {
+            currentPiece = kickedRight;
+            return;
+        }
+
+        // Wall-kick attempt (shift left)
+        var kickedLeft = rotated
+            .Select(p => (p.r, p.c - 1))
+            .ToList();
+
+        if (IsValidPosition(kickedLeft))
+        {
+            currentPiece = kickedLeft;
+        }
+    }
+
+    private bool IsSquarePiece()
+    {
+        var rows = currentPiece.Select(p => p.r).Distinct().Count();
+        var cols = currentPiece.Select(p => p.c).Distinct().Count();
+
+        return rows == 2 && cols == 2;
+    }
+
+    private bool IsValidPosition(List<(int r, int c)> piece)
+    {
+        foreach (var p in piece)
+        {
+            if (p.r < 0 || p.r >= Rows ||
+                p.c < 0 || p.c >= Cols)
+                return false;
+
+            if (Board[p.r, p.c].IsActive)
+                return false;
+        }
+
+        return true;
+    }
+
+    // LOCK PIECE
+    private void LockPiece()
+    {
+        foreach (var p in currentPiece)
+        {
+            Board[p.r, p.c] = new BlockData
+            {
+                IsActive = true,
+                Color = currentColor,
+                Hash = currentHash
+            };
+        }
+
+        Score += 10;
+    }
+
+    // ==============================
+    // LINE CHECK
+    // ==============================
+
+    private void CheckLines()
+    {
+        for (int r = Rows - 1; r >= 0; r--)
+        {
+            bool full = true;
+
+            for (int c = 0; c < Cols; c++)
+            {
+                if (!Board[r, c].IsActive)
+                {
+                    full = false;
+                    break;
+                }
+            }
+
+            if (full)
+            {
+                bool integrity = IntegrityMatch(r);
+
+                Score += integrity ? 200 : 100;
+
+                ClearRow(r);
+                r++;
+            }
+        }
+    }
+
+    private bool IntegrityMatch(int row)
+    {
+        var hashes = new HashSet<string>();
+
+        for (int c = 0; c < Cols; c++)
+            hashes.Add(Board[row, c].Hash);
+
+        return hashes.Count == 1;
+    }
+
+    private void ClearRow(int row)
+    {
+        for (int r = row; r > 0; r--)
+        {
+            for (int c = 0; c < Cols; c++)
+            {
+                Board[r, c] = Board[r - 1, c];
+            }
+        }
+
+        for (int c = 0; c < Cols; c++)
+            Board[0, c] = new BlockData();
+    }
+}
+
+<style>
+  .game-container {
+    background: #0f0f1b;
+    color: white;
+    font-family: Courier New, monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    min-height: 100vh;
+}
+
+.game-wrapper {
+    display: flex;
+    gap: 20px;
+    border: 2px solid #00d2ff;
+    padding: 10px;
+    box-shadow: 0 0 20px rgba(0,210,255,.3);
+}
+
+.grid-row {
+    display: flex;
+}
+
+.cell {
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(255,255,255,.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hash-label {
+    font-size: 8px;
+    color: black;
+    font-weight: bold;
+}
+
+.stats {
+    width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.stat-box {
+    background: #1a1a2e;
+    padding: 15px;
+    border-left: 4px solid #4ecca3;
+}
+
+.value {
+    font-size: 24px;
+    color: #4ecca3;
+}
+
+.critical {
+    color: #ff4b2b;
+}
+
+.btn-start {
+    background: transparent;
+    border: 2px solid #4ecca3;
+    color: #4ecca3;
+    padding: 10px;
+    cursor: pointer;
+}
+</style>
