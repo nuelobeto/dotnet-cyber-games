@@ -62,10 +62,6 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Ib21lLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[/Users/nuel/Desktop/work/personal/dotnet/CyberGames/Components/Pages/LogicGateRunner.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Mb2dpY0dhdGVSdW5uZXIucmF6b3I=
-build_metadata.AdditionalFiles.CssScope = 
-
 [/Users/nuel/Desktop/work/personal/dotnet/CyberGames/Components/Pages/MemoryMatch.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9NZW1vcnlNYXRjaC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
@@ -92,6 +88,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [/Users/nuel/Desktop/work/personal/dotnet/CyberGames/Components/Pages/Weather.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9XZWF0aGVyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/nuel/Desktop/work/personal/dotnet/CyberGames/Components/Pages/WhackaVulnerability.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9XaGFja2FWdWxuZXJhYmlsaXR5LnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
 [/Users/nuel/Desktop/work/personal/dotnet/CyberGames/Components/Routes.razor]
