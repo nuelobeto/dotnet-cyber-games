@@ -8,7 +8,7 @@
         <p class="subtitle">30 Days of .NET</p>
         <div class="stats-row">
             <span class="stat">PROJECT_STATUS: ACTIVE</span>
-            <span class="stat">CURRENT_PHASE: 11/30</span>
+            <span class="stat">CURRENT_PHASE: 12/30</span>
         </div>
     </header>
 
@@ -90,7 +90,14 @@
             <span class="tag">COMPLETED</span>
         </a>
 
-        @for (int i = 12; i <= 13; i++)
+        <a href="/whack-a-vulnerability" class="game-card active">
+            <div class="card-id">DAY_12</div>
+            <h3>Whack-a-Vulnerability</h3>
+            <p>Focus: Asynchronous State Management & Concurrent Collection Handling</p>
+            <span class="tag">COMPLETED</span>
+        </a>
+
+        @for (int i = 13; i <= 14; i++)
         {
             <div class="game-card locked">
                 <div class="card-id">DAY_@(i < 10 ? "0" : "")@i</div>
