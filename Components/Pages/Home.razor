@@ -8,7 +8,7 @@
         <p class="subtitle">30 Days of .NET</p>
         <div class="stats-row">
             <span class="stat">PROJECT_STATUS: ACTIVE</span>
-            <span class="stat">CURRENT_PHASE: 13/30</span>
+            <span class="stat">CURRENT_PHASE: 14/30</span>
         </div>
     </header>
 
@@ -104,7 +104,14 @@
             <span class="tag">COMPLETED</span>
         </a>
 
-        @for (int i = 14; i <= 15; i++)
+        <a href="/pac-man" class="game-card active">
+            <div class="card-id">DAY_13</div>
+            <h3>Pac-Man</h3>
+            <p>Focus: Inheritance & Polymorphism</p>
+            <span class="tag">COMPLETED</span>
+        </a>
+
+        @for (int i = 15; i <= 16; i++)
         {
             <div class="game-card locked">
                 <div class="card-id">DAY_@(i < 10 ? "0" : "")@i</div>
